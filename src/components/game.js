@@ -1,12 +1,20 @@
 import React, {Component} from "react";
+import "../assets/css/game.css";
+import History from "./history"
 
 class Game extends Component{
     constructor(props){
         super(props);
         this.state ={
-            randomNumber: 0,
-            userNumber: ""
+            userNumber: "",
+            message: "",
+            shake: false,
+            guesses: 0,
+            lowScore: localStorage.getItem("score") || "Not Set",
+            history: []
         };
+        this.randomNumber = 0;
+        this.status = "playable";
         this.resetGame = this.resetGame.bind(this);
         this.makeGuess = this.makeGuess.bind(this);
     }
@@ -15,30 +23,82 @@ class Game extends Component{
         this.generateRandomNumber();
     }
     generateRandomNumber(){
-        const randNum = (Math.random() * 10 >> 0) + 1;
-
-        this.setState({
-            randomNumber: randNum
-        });
+        this.randomNumber = (Math.random() * 10 >> 0) + 1;
     }
     makeGuess(event){
         event.preventDefault();
-        console.log("User Guess", this.state.userNumber)
+        if (this.status === "win"){
+            return;
+        }
+        const {userNumber, guesses, history} = this.state;
+        let msg = "";
+
+        if(this.randomNumber < userNumber){
+            msg = "too high";
+        }
+        else if(this.randomNumber > userNumber){
+            msg = "too low";
+        }
+        else{
+            msg = "you got it";
+            this.status = "win";
+        }
+
+        this.setState({
+            message: msg,
+            userNumber: "",
+            shake: true,
+            guesses: guesses + 1,
+            history: [`${userNumber} is ${msg}`, ...history]
+        }, () => {
+            if(this.status === "win"){
+                this.checkHighScore()
+            }
+        });
+        setTimeout(() => {
+            this.setState({
+                shake: false
+            });
+        }, 500);
     }
     resetGame(){
+        this.status = "playable";
         this.generateRandomNumber();
+        this.setState({
+            userNumber: "",
+            message: "",
+            shake: false,
+            guesses: 0,
+            history: []
+        });
+    }
+    checkHighScore(){
+        const highScore = localStorage.getItem("score");
+        const {guesses} = this.state;
+        if(highScore){
+            if(guesses < highScore){
+                localStorage.setItem("score", guesses);
+            }
+        }
+        else{
+            localStorage.setItem("score", guesses);
+        }
+
+        this.setState({
+            lowScore: localStorage.getItem("score")
+        });
     }
     render(){
         console.log(this.state);
         const btnStyle = {
             margin: "10px 5px"
         };
-        const{randomNumber, userNumber} = this.state;
+        const{userNumber, message, shake, guesses, lowScore, history} = this.state;
         return(
             <div>
-                <p>Random Number: {randomNumber}</p>
+                <p>Best Score: {lowScore}</p>
                 <div className="row">
-                    <form onSubmit={this.makeGuess}className="col s6 offset-s3">
+                    <form onSubmit={this.makeGuess} className="col s6 offset-s3">
                         <div className="row">
                             <div className="input-field">
                                 <input onChange={(event) => {this.setState({userNumber: event.target.value})}} value={userNumber} type="number" placeholder="Enter a number" className="center-align"/>
@@ -50,9 +110,11 @@ class Game extends Component{
                         </div>
                     </form>
                 </div>
+                <h4 className="center-align">Number of Guesses: {guesses}</h4>
+                <h3 className={`center-align ${shake ? "shake" : ""}`}>{message}</h3>
+                <History data={history}/>
             </div>
         )
     }
 }
-
 export default Game;
